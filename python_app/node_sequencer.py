@@ -7,6 +7,9 @@ import serial.tools.list_ports
 import threading
 import pyttsx3
 import speech_recognition as sr
+import cv2
+import csv
+import datetime
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -56,6 +59,7 @@ class Node:
         elif node_type == "action": color = "#1f6feb"
         elif node_type == "tts": color = "#8957e5"
         elif node_type == "stt": color = "#0891b2"
+        elif node_type == "camera": color = "#d73a49"
         
         self.rect_id = self.canvas.create_rectangle(x, y, x+width, y+height, fill=color, outline="#30363d", width=2, tags="node")
         self.text_id = self.canvas.create_text(x+width/2, y+15, text=name, fill="white", font=("Arial", 12, "bold"), tags="node")
@@ -64,9 +68,9 @@ class Node:
         self.in_port_id = None
         self.out_port_id = None
         
-        if node_type in ["action", "delay", "tts", "stt"]:
+        if node_type in ["action", "delay", "tts", "stt", "camera"]:
             self.in_port_id = self.canvas.create_oval(x-6, y+height/2-6, x+6, y+height/2+6, fill="#c9d1d9", tags="port")
-        if node_type in ["start", "action", "delay", "tts", "stt"]:
+        if node_type in ["start", "action", "delay", "tts", "stt", "camera"]:
             self.out_port_id = self.canvas.create_oval(x+width-6, y+height/2-6, x+width+6, y+height/2+6, fill="#c9d1d9", tags="port")
             
         # Widgets
@@ -87,6 +91,9 @@ class Node:
             self.widget_window_id = self.canvas.create_window(x+width/2, y+50, window=self.widget)
         elif node_type == "stt":
             self.widget = ctk.CTkEntry(self.app, width=140, height=25, justify="center", placeholder_text="Palabra a escuchar")
+            self.widget_window_id = self.canvas.create_window(x+width/2, y+50, window=self.widget)
+        elif node_type == "camera":
+            self.widget = ctk.CTkOptionMenu(self.app, values=["Iniciar Tracking", "Detener Tracking"], width=130, height=25, fg_color="#cb2431", button_color="#b31d28")
             self.widget_window_id = self.canvas.create_window(x+width/2, y+50, window=self.widget)
             
         self.canvas.tag_bind(self.rect_id, "<ButtonPress-1>", self.on_press)
@@ -220,6 +227,7 @@ class NodeSequencerApp(ctk.CTk):
         ctk.CTkButton(sidebar, text="+ Nodo Delay", fg_color="#d29922", hover_color="#e3b341", command=lambda: self.add_node("delay")).pack(pady=5, fill="x")
         ctk.CTkButton(sidebar, text="+ Nodo Hablar", fg_color="#8957e5", hover_color="#a371f7", command=lambda: self.add_node("tts")).pack(pady=5, fill="x")
         ctk.CTkButton(sidebar, text="+ Nodo Escuchar", fg_color="#0891b2", hover_color="#06b6d4", command=lambda: self.add_node("stt")).pack(pady=5, fill="x")
+        ctk.CTkButton(sidebar, text="+ Nodo Cámara", fg_color="#d73a49", hover_color="#cb2431", command=lambda: self.add_node("camera")).pack(pady=5, fill="x")
         
         ctk.CTkLabel(sidebar, text="-------------------").pack(pady=10)
         
@@ -244,6 +252,7 @@ class NodeSequencerApp(ctk.CTk):
         if node_type == "delay": name = "Delay"
         if node_type == "tts": name = "Hablar (TTS)"
         if node_type == "stt": name = "Escuchar (STT)"
+        if node_type == "camera": name = "Cámara HRI"
         
         node = Node(self, self.canvas, 50, 50, name, node_type)
         self.nodes.append(node)
@@ -370,6 +379,50 @@ class NodeSequencerApp(ctk.CTk):
                 self.send_command(ch, 0)
         self.after(500, turn_off)
 
+    def start_camera_tracking(self, name, age, career):
+        if hasattr(self, 'camera_running') and self.camera_running:
+            return
+            
+        self.camera_running = True
+        
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"hri_log_{name}_{timestamp}.csv".replace(" ", "_")
+        
+        with open(filename, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(["Timestamp", "Nombre", "Edad", "Carrera", "Emocion_Detectada", "Atencion"])
+            
+        def tracking_thread():
+            cap = cv2.VideoCapture(0)
+            while self.camera_running and self.seq_running and self.running:
+                ret, frame = cap.read()
+                if not ret: continue
+                
+                # AQUI SE PONDRA EL ALGORITMO (DEEPFACE, HAAR, ETC)
+                # Simularemos deteccion por ahora:
+                emocion_falsa = "Neutral" 
+                atencion = "Alta"
+                
+                # Guardar al CSV
+                now = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                try:
+                    with open(filename, 'a', newline='') as f:
+                        writer = csv.writer(f)
+                        writer.writerow([now, name, age, career, emocion_falsa, atencion])
+                except Exception as e:
+                    pass
+                    
+                # Leer a aprox 10 FPS
+                cv2.waitKey(100)
+                
+            cap.release()
+            print(f"Tracking detenido. Archivo guardado: {filename}")
+            
+        threading.Thread(target=tracking_thread, daemon=True).start()
+
+    def stop_camera_tracking(self):
+        self.camera_running = False
+
     def update_highlights(self):
         for n in self.nodes:
             self.canvas.itemconfig(n.rect_id, width=2, outline="#30363d")
@@ -396,6 +449,8 @@ class NodeSequencerApp(ctk.CTk):
         self.update_highlights()
         self.status_lbl.configure(text="Secuencia Detenida", text_color="#f2cc60")
         self.send_raw_command("L1 R0 G0 B255\n") # Restore LED1 Idle
+        if hasattr(self, 'camera_running') and self.camera_running:
+            self.stop_camera_tracking()
 
     def run_node(self, node):
         if not self.seq_running: return
@@ -475,6 +530,45 @@ class NodeSequencerApp(ctk.CTk):
                 self.after(0, finish_node)
             else:
                 threading.Thread(target=listen_thread, daemon=True).start()
+
+        elif node.node_type == "camera":
+            act = node.widget.get()
+            if act == "Iniciar Tracking":
+                self.send_raw_command("L1 R255 G0 B0\n") # Rojo (Grabando)
+                
+                dialog = ctk.CTkToplevel(self)
+                dialog.title("Datos HRI")
+                dialog.geometry("300x300")
+                dialog.transient(self)
+                dialog.grab_set()
+                
+                ctk.CTkLabel(dialog, text="Nombre del Participante:").pack(pady=(10,0))
+                e_name = ctk.CTkEntry(dialog)
+                e_name.pack()
+                
+                ctk.CTkLabel(dialog, text="Edad:").pack(pady=(5,0))
+                e_age = ctk.CTkEntry(dialog)
+                e_age.pack()
+                
+                ctk.CTkLabel(dialog, text="Carrera:").pack(pady=(5,0))
+                e_career = ctk.CTkEntry(dialog)
+                e_career.pack()
+                
+                def start_cam():
+                    name_val = e_name.get() or "Anon"
+                    age_val = e_age.get() or "0"
+                    car_val = e_career.get() or "None"
+                    dialog.destroy()
+                    
+                    self.start_camera_tracking(name_val, age_val, car_val)
+                    self.after(0, finish_node)
+                    
+                ctk.CTkButton(dialog, text="Comenzar Grabación", command=start_cam, fg_color="#d73a49", hover_color="#cb2431").pack(pady=15)
+                
+            else: # Detener Tracking
+                self.stop_camera_tracking()
+                self.send_raw_command("L1 R0 G0 B255\n") # Volver a azul
+                self.after(0, finish_node)
 
     def on_closing(self):
         self.running = False

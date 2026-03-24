@@ -3,3 +3,4 @@ pyserial
 SpeechRecognition
 pyaudio
 pyttsx3
+opencv-python
