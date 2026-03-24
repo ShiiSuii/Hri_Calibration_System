@@ -4,6 +4,9 @@ import json
 import os
 import serial
 import serial.tools.list_ports
+import threading
+import pyttsx3
+import speech_recognition as sr
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
@@ -45,12 +48,14 @@ class Node:
         self.node_type = node_type # "start", "action", "delay"
         
         self.in_edge = None
-        self.out_edge = None
+        self.out_edges = []
         
         color = "#21262d"
         if node_type == "start": color = "#2ea043"
         elif node_type == "delay": color = "#d29922"
         elif node_type == "action": color = "#1f6feb"
+        elif node_type == "tts": color = "#8957e5"
+        elif node_type == "stt": color = "#0891b2"
         
         self.rect_id = self.canvas.create_rectangle(x, y, x+width, y+height, fill=color, outline="#30363d", width=2, tags="node")
         self.text_id = self.canvas.create_text(x+width/2, y+15, text=name, fill="white", font=("Arial", 12, "bold"), tags="node")
@@ -59,9 +64,9 @@ class Node:
         self.in_port_id = None
         self.out_port_id = None
         
-        if node_type in ["action", "delay"]:
+        if node_type in ["action", "delay", "tts", "stt"]:
             self.in_port_id = self.canvas.create_oval(x-6, y+height/2-6, x+6, y+height/2+6, fill="#c9d1d9", tags="port")
-        if node_type in ["start", "action", "delay"]:
+        if node_type in ["start", "action", "delay", "tts", "stt"]:
             self.out_port_id = self.canvas.create_oval(x+width-6, y+height/2-6, x+width+6, y+height/2+6, fill="#c9d1d9", tags="port")
             
         # Widgets
@@ -76,6 +81,12 @@ class Node:
         elif node_type == "delay":
             self.widget = ctk.CTkEntry(self.app, width=100, height=25, justify="center")
             self.widget.insert(0, "1.0")
+            self.widget_window_id = self.canvas.create_window(x+width/2, y+50, window=self.widget)
+        elif node_type == "tts":
+            self.widget = ctk.CTkEntry(self.app, width=140, height=25, justify="center", placeholder_text="Texto a hablar")
+            self.widget_window_id = self.canvas.create_window(x+width/2, y+50, window=self.widget)
+        elif node_type == "stt":
+            self.widget = ctk.CTkEntry(self.app, width=140, height=25, justify="center", placeholder_text="Palabra a escuchar")
             self.widget_window_id = self.canvas.create_window(x+width/2, y+50, window=self.widget)
             
         self.canvas.tag_bind(self.rect_id, "<ButtonPress-1>", self.on_press)
@@ -111,7 +122,7 @@ class Node:
             self.canvas.coords(self.widget_window_id, coords[0]+dx, coords[1]+dy)
             
         if self.in_edge: self.in_edge.update_positions()
-        if self.out_edge: self.out_edge.update_positions()
+        for e in self.out_edges: e.update_positions()
         
         self.start_x = event.x
         self.start_y = event.y
@@ -155,7 +166,7 @@ class NodeSequencerApp(ctk.CTk):
         self.serial_port = None
         self.running = True
         self.seq_running = False
-        self.current_execution_node = None
+        self.active_nodes = []
         
         self.load_config()
         self.build_ui()
@@ -207,6 +218,8 @@ class NodeSequencerApp(ctk.CTk):
         ctk.CTkButton(sidebar, text="+ Nodo Inicio", fg_color="#2ea043", hover_color="#238636", command=lambda: self.add_node("start")).pack(pady=5, fill="x")
         ctk.CTkButton(sidebar, text="+ Nodo Acción", fg_color="#1f6feb", hover_color="#388bfd", command=lambda: self.add_node("action")).pack(pady=5, fill="x")
         ctk.CTkButton(sidebar, text="+ Nodo Delay", fg_color="#d29922", hover_color="#e3b341", command=lambda: self.add_node("delay")).pack(pady=5, fill="x")
+        ctk.CTkButton(sidebar, text="+ Nodo Hablar", fg_color="#8957e5", hover_color="#a371f7", command=lambda: self.add_node("tts")).pack(pady=5, fill="x")
+        ctk.CTkButton(sidebar, text="+ Nodo Escuchar", fg_color="#0891b2", hover_color="#06b6d4", command=lambda: self.add_node("stt")).pack(pady=5, fill="x")
         
         ctk.CTkLabel(sidebar, text="-------------------").pack(pady=10)
         
@@ -229,19 +242,14 @@ class NodeSequencerApp(ctk.CTk):
         name = "Start"
         if node_type == "action": name = "Acción"
         if node_type == "delay": name = "Delay"
+        if node_type == "tts": name = "Hablar (TTS)"
+        if node_type == "stt": name = "Escuchar (STT)"
         
         node = Node(self, self.canvas, 50, 50, name, node_type)
         self.nodes.append(node)
 
     def start_edge(self, node, port_type, x, y):
         self.drawing_source_node = node
-        # Eliminar cable existente en este puerto out si lo hubiera
-        if node.out_edge:
-            node.out_edge.delete()
-            if node.out_edge in self.edges: self.edges.remove(node.out_edge)
-            if node.out_edge.target_node: node.out_edge.target_node.in_edge = None
-            node.out_edge = None
-            
         self.drawing_edge_id = self.canvas.create_line(x, y, x, y, smooth=True, width=3, fill="#58a6ff", dash=(4, 4))
 
     def drag_edge(self, x, y):
@@ -271,12 +279,14 @@ class NodeSequencerApp(ctk.CTk):
             if target_node.in_edge:
                 target_node.in_edge.delete()
                 if target_node.in_edge in self.edges: self.edges.remove(target_node.in_edge)
-                if target_node.in_edge.source_node: target_node.in_edge.source_node.out_edge = None
+                if target_node.in_edge.source_node:
+                    if target_node.in_edge in target_node.in_edge.source_node.out_edges:
+                        target_node.in_edge.source_node.out_edges.remove(target_node.in_edge)
                 
             edge = Edge(self.canvas, self.drawing_source_node, "out", target_node, "in")
             self.edges.append(edge)
             
-            self.drawing_source_node.out_edge = edge
+            self.drawing_source_node.out_edges.append(edge)
             target_node.in_edge = edge
             self.drawing_source_node = None
 
@@ -348,16 +358,11 @@ class NodeSequencerApp(ctk.CTk):
                 self.send_command(ch, 0)
         self.after(500, turn_off)
 
-    def highlight_node(self, node):
+    def update_highlights(self):
         for n in self.nodes:
-            color = "#21262d"
-            if n.node_type == "start": color = "#2ea043"
-            elif n.node_type == "delay": color = "#d29922"
-            elif n.node_type == "action": color = "#1f6feb"
             self.canvas.itemconfig(n.rect_id, width=2, outline="#30363d")
-            
-        if node:
-            self.canvas.itemconfig(node.rect_id, outline="#f2cc60", width=4)
+        for active in self.active_nodes:
+            self.canvas.itemconfig(active.rect_id, outline="#f2cc60", width=4)
 
     def play_sequence(self):
         if self.seq_running: return
@@ -369,42 +374,95 @@ class NodeSequencerApp(ctk.CTk):
             
         self.seq_running = True
         self.status_lbl.configure(text="Secuencia Ejecutando...", text_color="#2ea043")
-        self.current_execution_node = start_nodes[0]
-        self.run_node()
+        self.active_nodes = []
+        for n in start_nodes:
+            self.run_node(n)
 
     def stop_sequence(self):
         self.seq_running = False
-        self.highlight_node(None)
+        self.active_nodes = []
+        self.update_highlights()
         self.status_lbl.configure(text="Secuencia Detenida", text_color="#f2cc60")
+        self.send_raw_command("L1 R0 G0 B255\n") # Restore LED1 Idle
 
-    def run_node(self):
-        if not self.seq_running or not self.current_execution_node:
-            self.stop_sequence()
-            return
+    def run_node(self, node):
+        if not self.seq_running: return
+        
+        if node not in self.active_nodes:
+            self.active_nodes.append(node)
+        self.update_highlights()
+        
+        def finish_node():
+            if not self.seq_running: return
+            if node in self.active_nodes:
+                self.active_nodes.remove(node)
+            self.update_highlights()
+            for edge in node.out_edges:
+                if edge.target_node:
+                    self.run_node(edge.target_node)
+                    
+        if node.node_type == "start":
+            self.after(50, finish_node)
             
-        node = self.current_execution_node
-        self.highlight_node(node)
-        
-        delay_ms = 50 # minimal delay between pure computation
-        
-        if node.node_type == "action":
+        elif node.node_type == "action":
             act_name = node.widget.get()
             self.execute_action(act_name)
-            delay_ms = 100 # Esperar que el motor reciba antes del siguiente
+            self.after(100, finish_node)
+            
         elif node.node_type == "delay":
             try:
                 val = float(node.widget.get())
                 delay_ms = int(val * 1000)
             except:
                 delay_ms = 1000
-                
-        # Buscar el siguiente nodo a traves del edge de salida
-        next_node = None
-        if node.out_edge and node.out_edge.target_node:
-            next_node = node.out_edge.target_node
+            self.after(delay_ms, finish_node)
             
-        self.current_execution_node = next_node
-        self.after(delay_ms, self.run_node)
+        elif node.node_type == "tts":
+            text = node.widget.get()
+            self.send_raw_command("L1 R0 G255 B0\n") # Verde (Hablando)
+            
+            def speak_thread():
+                try:
+                    engine = pyttsx3.init()
+                    engine.say(text)
+                    engine.runAndWait()
+                except Exception as e:
+                    print("Error TTS:", e)
+                if self.seq_running:
+                    self.send_raw_command("L1 R0 G0 B255\n") # Azul (Idle)
+                    self.after(0, finish_node)
+                    
+            threading.Thread(target=speak_thread, daemon=True).start()
+            
+        elif node.node_type == "stt":
+            expected_text = node.widget.get().lower().strip()
+            self.send_raw_command("L1 R0 G255 B255\n") # Cian (Escuchando)
+            
+            def listen_thread():
+                r = sr.Recognizer()
+                with sr.Microphone() as source:
+                    r.adjust_for_ambient_noise(source, duration=0.5)
+                    while self.seq_running:
+                        try:
+                            audio = r.listen(source, timeout=3, phrase_time_limit=5)
+                            recognized = r.recognize_google(audio, language="es-ES").lower()
+                            print("Speech Recognized:", recognized)
+                            if expected_text in recognized:
+                                break
+                        except sr.WaitTimeoutError:
+                            continue
+                        except Exception as e:
+                            # Silently ignore noise/unrecognized
+                            continue
+                if self.seq_running:
+                    self.send_raw_command("L1 R0 G0 B255\n") # Azul (Idle)
+                    self.after(0, finish_node)
+                    
+            if not expected_text:
+                # If no text provided, just pass
+                self.after(0, finish_node)
+            else:
+                threading.Thread(target=listen_thread, daemon=True).start()
 
     def on_closing(self):
         self.running = False
