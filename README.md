@@ -13,8 +13,11 @@ El firmware de Arduino actúa como el cerebro de bajo nivel del sistema. Recibe 
 
 **Características principales:**
 - **Soporte Multi-Placa:** Configurado para manejar dos placas PCA9685 simultáneamente en las direcciones `0x40` (ej: Cráneo, canales 0-15) y `0x43` (ej: Cuello, canales 16-31).
+- **Control de LEDs de Estado (NUEVO):** Soporta dos LEDs RGB (con PWM) para debug visual.
+  - **LED 1 (Interacción):** Se conecta a los pines 3 (Rojo), 5 (Verde), 6 (Azul). Recibe comandos manuales de Python (`L1 R<val> G<val> B<val>`) para mostrar estados futuros (hablando, escuchando). Por defecto es **Azul** (Standby).
+  - **LED 2 (Hardware):** Se conecta a los pines 9 (Rojo), 10 (Verde), 11 (Azul). Es automático: se enciende en **Verde** cuando hay motores haciendo fuerza, y regresa a **Azul** cuando todos los motores cortan su energía por seguridad.
 - **Escáner I2C Integrado:** Permite a la aplicación de Python consultar y verificar qué dispositivos I2C están conectados y respondiendo enviando el comando `S\n`.
-- **Protocolo de Comunicación Simple:** Recibe comandos en el formato `C<canal> P<pulso>\n` (ej. `C16 P300`).
+- **Protocolo de Comunicación Simple:** Recibe comandos de servos en el formato `C<canal> P<pulso>\n` (ej. `C16 P300`) y comandos de luz como `L1 R255 G0 B255\n`.
 - **Sistema de Auto-Apagado (Safety Timeout):** Monitorea el tiempo de activación de cada motor. Si un motor se mantiene energizado por más de 1000ms sin recibir un nuevo comando de posición, el Arduino automáticamente corta la señal PWM (escribe 4096). Esto es crucial para **evitar el sobrecalentamiento y la quema de los servomotores** cuando no se están moviendo, un problema común en robótica cuando los motores intentan mantener una posición contra fuerza mecánica.
 
 ### 2. Software de Control (Python)
@@ -43,6 +46,7 @@ Una herramienta visual e interactiva tipo "Drag and Drop" para programar comport
 - 2x Módulos PCA9685 (direccionados a 0x40 y 0x43).
 - Servomotores.
 - Fuente de alimentación externa para los servos (el Arduino no puede alimentarlos por sí solo).
+- **2x Módulos LED RGB** (Conectar a los pines PWM del Arduino: LED1 a 3,5,6 y LED2 a 9,10,11).
 
 ### Software
 1. **Arduino IDE:**

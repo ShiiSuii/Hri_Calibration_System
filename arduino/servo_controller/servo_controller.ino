@@ -7,12 +7,35 @@ Adafruit_PWMServoDriver pwm_neck = Adafruit_PWMServoDriver(0x43);
 #define SERVO_FREQ 50
 #define AUTO_OFF_TIMEOUT 1000
 
+// PINES PARA LED 1 (Interacción / Control desde Python)
+#define LED1_R 3
+#define LED1_G 5
+#define LED1_B 6
+
+// PINES PARA LED 2 (Estado de Motores / Hardware)
+#define LED2_R 9
+#define LED2_G 10
+#define LED2_B 11
+
 unsigned long lastCommandTime[32];
 bool isEnergized[32];
 
 void setup() {
   Serial.begin(115200);
   Wire.begin(); // Needed for I2C Scan
+  
+  pinMode(LED1_R, OUTPUT);
+  pinMode(LED1_G, OUTPUT);
+  pinMode(LED1_B, OUTPUT);
+  
+  pinMode(LED2_R, OUTPUT);
+  pinMode(LED2_G, OUTPUT);
+  pinMode(LED2_B, OUTPUT);
+
+  // Inicialización (Standby / Idle) -> Azul
+  analogWrite(LED1_R, 0); analogWrite(LED1_G, 0); analogWrite(LED1_B, 255);
+  analogWrite(LED2_R, 0); analogWrite(LED2_G, 0); analogWrite(LED2_B, 255);
+
   pwm_skull.begin();
   pwm_skull.setOscillatorFrequency(27000000);
   pwm_skull.setPWMFreq(SERVO_FREQ);
@@ -58,6 +81,20 @@ void loop() {
           }
           if (count == 0) Serial.print(" NONE");
           Serial.println();
+        } else if (buffer[0] == 'L') {
+          // Comando para controlar LEDs (ej: L1 R255 G0 B255)
+          int led_num = -1, r = -1, g = -1, b = -1;
+          if (sscanf(buffer, "L%d R%d G%d B%d", &led_num, &r, &g, &b) == 4) {
+            if (led_num == 1) {
+              analogWrite(LED1_R, r);
+              analogWrite(LED1_G, g);
+              analogWrite(LED1_B, b);
+            } else if (led_num == 2) {
+              analogWrite(LED2_R, r);
+              analogWrite(LED2_G, g);
+              analogWrite(LED2_B, b);
+            }
+          }
         } else {
           int channel = -1;
           int pulse = -1;
@@ -85,6 +122,7 @@ void loop() {
     }
   }
 
+  // Verificar Timeout de Auto-Apagado
   unsigned long currentMillis = millis();
   for (int i = 0; i < 32; i++) {
     if (isEnergized[i]) {
@@ -94,5 +132,25 @@ void loop() {
         isEnergized[i] = false;
       }
     }
+  }
+  
+  // LED 2: Feedback visual automático según isEnergized
+  static bool wasActive = false;
+  bool anyActive = false;
+  for (int i=0; i<32; i++) {
+    if (isEnergized[i]) {
+      anyActive = true;
+      break;
+    }
+  }
+  
+  if (anyActive && !wasActive) {
+    // Verde: Al menos un motor encendido
+    analogWrite(LED2_R, 0); analogWrite(LED2_G, 255); analogWrite(LED2_B, 0);
+    wasActive = true;
+  } else if (!anyActive && wasActive) {
+    // Azul: Todos los motores apagados
+    analogWrite(LED2_R, 0); analogWrite(LED2_G, 0); analogWrite(LED2_B, 255);
+    wasActive = false;
   }
 }
