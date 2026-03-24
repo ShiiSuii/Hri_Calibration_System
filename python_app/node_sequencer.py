@@ -260,6 +260,39 @@ class NodeSequencerApp(ctk.CTk):
             self.canvas.coords(self.drawing_edge_id, sx, sy, ctrl1_x, ctrl1_y, ctrl2_x, ctrl2_y, x, y)
 
     def end_edge(self, x, y):
+        if not self.drawing_source_node:
+            # Limpiar si es necesario
+            if self.drawing_edge_id:
+                self.canvas.delete(self.drawing_edge_id)
+                self.drawing_edge_id = None
+            return
+
+        overlapping = self.canvas.find_overlapping(x-5, y-5, x+5, y+5)
+        connected = False
+        
+        for n in self.nodes:
+            if n.in_port_id and n.in_port_id in overlapping:
+                # Se soltó sobre un puerto de entrada (in)
+                target_node = n
+                # Impedir auto-conexion
+                if target_node == self.drawing_source_node: continue
+                
+                # Quitar cable anterior de destino si lo hubiera
+                if target_node.in_edge:
+                    target_node.in_edge.delete()
+                    if target_node.in_edge in self.edges: self.edges.remove(target_node.in_edge)
+                    if target_node.in_edge.source_node:
+                        if target_node.in_edge in target_node.in_edge.source_node.out_edges:
+                            target_node.in_edge.source_node.out_edges.remove(target_node.in_edge)
+                
+                edge = Edge(self.canvas, self.drawing_source_node, "out", target_node, "in")
+                self.edges.append(edge)
+                
+                self.drawing_source_node.out_edges.append(edge)
+                target_node.in_edge = edge
+                connected = True
+                break
+                
         # Si soltó en vacío, eliminar
         if self.drawing_edge_id:
             self.canvas.delete(self.drawing_edge_id)
@@ -267,28 +300,7 @@ class NodeSequencerApp(ctk.CTk):
         self.drawing_source_node = None
 
     def end_edge_on_port(self, target_node):
-        if self.drawing_edge_id and self.drawing_source_node:
-            # Eliminar edge de dibujo
-            self.canvas.delete(self.drawing_edge_id)
-            self.drawing_edge_id = None
-            
-            # Impedir auto-conexion
-            if target_node == self.drawing_source_node: return
-            
-            # Quitar cable anterior de destino si lo hubiera
-            if target_node.in_edge:
-                target_node.in_edge.delete()
-                if target_node.in_edge in self.edges: self.edges.remove(target_node.in_edge)
-                if target_node.in_edge.source_node:
-                    if target_node.in_edge in target_node.in_edge.source_node.out_edges:
-                        target_node.in_edge.source_node.out_edges.remove(target_node.in_edge)
-                
-            edge = Edge(self.canvas, self.drawing_source_node, "out", target_node, "in")
-            self.edges.append(edge)
-            
-            self.drawing_source_node.out_edges.append(edge)
-            target_node.in_edge = edge
-            self.drawing_source_node = None
+        pass # Obsoleto, la logica fue traspasada a end_edge
 
     def clear_canvas(self):
         for e in self.edges:
