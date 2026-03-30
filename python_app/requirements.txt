@@ -4,3 +4,5 @@ SpeechRecognition
 pyaudio
 pyttsx3
 opencv-python
+gTTS
+pygame

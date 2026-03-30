@@ -361,20 +361,24 @@ class ServoApp(ctk.CTk):
             row = ctk.CTkFrame(self.actions_scroll, fg_color="#21262d", corner_radius=6)
             row.pack(pady=5, fill="x", padx=10, ipady=5)
             
-            name_e = ctk.CTkEntry(row, width=200, justify="center", font=ctk.CTkFont(size=14, weight="bold"))
+            # Use CTkFont objects which are safer for Linux rendering than tuples
+            font_bold = ctk.CTkFont(family="Roboto", size=14, weight="bold")
+            font_normal = ctk.CTkFont(family="Roboto", size=14)
+            
+            name_e = ctk.CTkEntry(row, width=200, justify="center", font=font_bold)
             name_e.insert(0, act.get("name", ""))
             name_e.pack(side="left", padx=10)
             
-            cfg_e = ctk.CTkEntry(row, width=400, font=ctk.CTkFont(size=14))
+            cfg_e = ctk.CTkEntry(row, width=400, font=font_normal)
             cfg_e.insert(0, act.get("config", ""))
             cfg_e.pack(side="left", padx=10, fill="x", expand=True)
             
             entry_dict = {"name_e": name_e, "cfg_e": cfg_e}
             
-            del_btn = ctk.CTkButton(row, text="🗑 Quitar", width=80, height=35, fg_color="#da3633", hover_color="#f85149", font=ctk.CTkFont(size=14, weight="bold"), command=lambda r=row, d=entry_dict: delete_action_row(r, d))
+            del_btn = ctk.CTkButton(row, text="🗑 Quitar", width=80, height=35, fg_color="#da3633", hover_color="#f85149", font=font_bold, command=lambda r=row, d=entry_dict: delete_action_row(r, d))
             del_btn.pack(side="right", padx=(5, 10))
             
-            btn = ctk.CTkButton(row, text="▶ Ejecutar", width=120, height=35, font=ctk.CTkFont(size=14, weight="bold"), command=lambda e=cfg_e: self.execute_custom_action(e.get()))
+            btn = ctk.CTkButton(row, text="▶ Ejecutar", width=120, height=35, font=font_bold, command=lambda e=cfg_e: self.execute_custom_action(e.get()))
             btn.pack(side="right", padx=5)
             
             self.action_ui_entries.append(entry_dict)

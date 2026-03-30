@@ -32,9 +32,9 @@ void setup() {
   pinMode(LED2_G, OUTPUT);
   pinMode(LED2_B, OUTPUT);
 
-  // Inicialización (Standby / Idle) -> Azul
-  analogWrite(LED1_R, 0); analogWrite(LED1_G, 0); analogWrite(LED1_B, 255);
-  analogWrite(LED2_R, 0); analogWrite(LED2_G, 0); analogWrite(LED2_B, 255);
+  // Inicialización (Todos OFF)
+  analogWrite(LED1_R, 0); analogWrite(LED1_G, 0); analogWrite(LED1_B, 0);
+  analogWrite(LED2_R, 0); analogWrite(LED2_G, 0); analogWrite(LED2_B, 0);
 
   pwm_skull.begin();
   pwm_skull.setOscillatorFrequency(27000000);
@@ -89,10 +89,12 @@ void loop() {
               analogWrite(LED1_R, r);
               analogWrite(LED1_G, g);
               analogWrite(LED1_B, b);
+              Serial.print("LED1_SET: "); Serial.print(r); Serial.print(","); Serial.print(g); Serial.print(","); Serial.println(b);
             } else if (led_num == 2) {
               analogWrite(LED2_R, r);
               analogWrite(LED2_G, g);
               analogWrite(LED2_B, b);
+              Serial.print("LED2_SET: "); Serial.print(r); Serial.print(","); Serial.print(g); Serial.print(","); Serial.println(b);
             }
           }
         } else {
@@ -132,25 +134,5 @@ void loop() {
         isEnergized[i] = false;
       }
     }
-  }
-  
-  // LED 2: Feedback visual automático según isEnergized
-  static bool wasActive = false;
-  bool anyActive = false;
-  for (int i=0; i<32; i++) {
-    if (isEnergized[i]) {
-      anyActive = true;
-      break;
-    }
-  }
-  
-  if (anyActive && !wasActive) {
-    // Verde: Al menos un motor encendido
-    analogWrite(LED2_R, 0); analogWrite(LED2_G, 255); analogWrite(LED2_B, 0);
-    wasActive = true;
-  } else if (!anyActive && wasActive) {
-    // Azul: Todos los motores apagados
-    analogWrite(LED2_R, 0); analogWrite(LED2_G, 0); analogWrite(LED2_B, 255);
-    wasActive = false;
   }
 }

@@ -1,5 +1,7 @@
 .venv/
 __pycache__/
 *.pyc
-config.json
+
+# Archivos de Configuración y Logs HRI
 *.json
+*.csv
