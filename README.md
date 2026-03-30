@@ -11,7 +11,24 @@ Este repositorio contiene un framework modular integral para la calibración, co
   - **LED 2 (Hardware / Energía)**: Actúa de forma completamente autónoma a nivel de firmware. Indica Verde en el instante que los motores están recibiendo torque y cambia a Azul cuando el sistema entra en reposo absoluto.
 - **Seguridad (Safety Timeout Automatizado)**: El firmware escrito en C/C++ inyectado en el Arduino corta automáticamente la señal PWM (escribe pulso 0) de cualquier canal de motor que haya mantenido su posición fija durante un tiempo prolongado sin recibir nuevos comandos. Esto resuelve el clásico problema en la robótica de sobrecalentamiento y quema de los servomotores por estrés estático contra fuerza mecánica.
 
-## 💻 Arquitectura del Software (Python)
+### Mapeo de Canales PCA9685
+El sistema distribuye la asignaci\u00f3n anat\u00f3mica del robot a trav\u00e9s de los diversos canales PWM. Actualmente la configuraci\u00f3n se mapea de la siguiente manera:
+
+**M\u00f3dulo 1 (`0x40`) - Cr\u00e1neo / Rostro (Canales 0 al 15):**
+- **0**: Mand\u00edbula
+- **1**: Labio Superior
+- **2 y 3**: Cachetes (Derecho e Izquierdo)
+- **4 y 5**: Ojo Derecho (Eje X/Y)
+- **7 y 10**: Ojo Izquierdo (Eje Y/X)
+- **6, 8, 9, 11**: P\u00e1rpados (Superiores e Inferiores, Izquierdo y Derecho)
+- **12 al 15**: Cejas y Ce\u00f1o (Cejas D/I y Ce\u00f1os D/I)
+
+**M\u00f3dulo 2 (`0x43`) - Cuello / Mec\u00e1nica Base (Canales 16 al 19):**
+- **16 y 17**: Ejes de rotaci\u00f3n (Girar Izquierda/Derecha)
+- **18**: Cuello/Frente (Movimiento Arriba/Abajo / Cabeceo)
+- **19**: Cuello Lateral (Inclinaci\u00f3n hacia los hombros)
+
+## \U0001f4bb Arquitectura del Software (Python)
 Todo el software de control está desarrollado en Python utilizando la librería `customtkinter` para asegurar interfaces oscuras (`Dark Mode`), ágiles y modernas. La comunicación entre la PC y el Arduino se entabla universalmente mediante protocolo de puerto `Serial`. Todo el proyecto orbita en torno al archivo maestro `config.json`, el cual almacena la configuración de puertos y calibraciones.
 
 ### 1. Sistema de Calibración (`main.py`)
