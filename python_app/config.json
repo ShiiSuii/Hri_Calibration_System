@@ -1,0 +1,226 @@
+{
+    "servos": [
+        {
+            "id": 0,
+            "name": "Mandibula",
+            "min": 257,
+            "max": 364,
+            "mid": 315,
+            "current": 315
+        },
+        {
+            "id": 1,
+            "name": "Labio Superior",
+            "min": 268,
+            "max": 310,
+            "mid": 288,
+            "current": 288
+        },
+        {
+            "id": 2,
+            "name": "Cachete Derecho",
+            "min": 238,
+            "max": 334,
+            "mid": 290,
+            "current": 290
+        },
+        {
+            "id": 3,
+            "name": "Cachete Izquierdo",
+            "min": 215,
+            "max": 304,
+            "mid": 270,
+            "current": 265
+        },
+        {
+            "id": 4,
+            "name": "OJO derecho l/r",
+            "min": 288,
+            "max": 375,
+            "mid": 336,
+            "current": 327
+        },
+        {
+            "id": 5,
+            "name": "OJO derecho arriba abajo",
+            "min": 246,
+            "max": 320,
+            "mid": 280,
+            "current": 280
+        },
+        {
+            "id": 6,
+            "name": "Parpador Sup IZquierdo",
+            "min": 407,
+            "max": 464,
+            "mid": 450,
+            "current": 427
+        },
+        {
+            "id": 7,
+            "name": "Ojo IZq Arriba/Abajo",
+            "min": 326,
+            "max": 410,
+            "mid": 360,
+            "current": 367
+        },
+        {
+            "id": 8,
+            "name": "Parpado Sup Derecho",
+            "min": 234,
+            "max": 317,
+            "mid": 276,
+            "current": 249
+        },
+        {
+            "id": 9,
+            "name": "Parpado Inf Derecho",
+            "min": 250,
+            "max": 306,
+            "mid": 285,
+            "current": 306
+        },
+        {
+            "id": 10,
+            "name": "Ojo IZq Lateral",
+            "min": 250,
+            "max": 338,
+            "mid": 298,
+            "current": 300
+        },
+        {
+            "id": 11,
+            "name": "Parpado Inf Izquierdo",
+            "min": 325,
+            "max": 285,
+            "mid": 310,
+            "current": 285
+        },
+        {
+            "id": 12,
+            "name": "Ceja derecha",
+            "min": 150,
+            "max": 600,
+            "mid": 375,
+            "current": 265
+        },
+        {
+            "id": 13,
+            "name": "Ceja Izquierda",
+            "min": 150,
+            "max": 600,
+            "mid": 375,
+            "current": 296
+        },
+        {
+            "id": 14,
+            "name": "Ceno derecho",
+            "min": 150,
+            "max": 600,
+            "mid": 375,
+            "current": 303
+        },
+        {
+            "id": 15,
+            "name": "Ceno izquierdo",
+            "min": 150,
+            "max": 600,
+            "mid": 375,
+            "current": 217
+        },
+        {
+            "id": 16,
+            "name": "Motor 16",
+            "min": 200,
+            "max": 500,
+            "mid": 375,
+            "current": 375
+        },
+        {
+            "id": 17,
+            "name": "Motor 17",
+            "min": 200,
+            "max": 500,
+            "mid": 255,
+            "current": 272
+        },
+        {
+            "id": 18,
+            "name": "Cuello/Frente",
+            "min": 492,
+            "max": 264,
+            "mid": 362,
+            "current": 329
+        },
+        {
+            "id": 19,
+            "name": "Cuello Lateral",
+            "min": 150,
+            "max": 600,
+            "mid": 375,
+            "current": 375
+        }
+    ],
+    "custom_actions": [
+        {
+            "name": "Cuello: Posici\u00f3n Neutra",
+            "config": "16:M, 17:272, 18:M, 19:M"
+        },
+        {
+            "name": "Cuello: Girar a Izquierda",
+            "config": "16:550, 17:200"
+        },
+        {
+            "name": "Cuello: Girar a Derecha",
+            "config": "16:240, 17:480"
+        },
+        {
+            "name": "Cuello: Dormido",
+            "config": "16:328, 17:306, 18:500, 19:375"
+        },
+        {
+            "name": "Cuello: Despierto",
+            "config": "16:M, 17:M, 18:M, 19:M"
+        },
+        {
+            "name": "Cr\u00e1neo: Posici\u00f3n Neutra",
+            "config": "0:M"
+        },
+        {
+            "name": "Cr\u00e1neo: Abrir Mand\u00edbula",
+            "config": "0:364"
+        },
+        {
+            "name": "Cr\u00e1neo: Cerrar Mand\u00edbula",
+            "config": "0:257"
+        },
+        {
+            "name": "OJOS CERRADOS",
+            "config": "11:285, 9:306, 8:249,  6:464"
+        },
+        {
+            "name": "OJOS ABIERTOS",
+            "config": "11:325, 9:270, 8:307,  6:430"
+        },
+        {
+            "name": "Mirar derecha",
+            "config": "4:280,10:275"
+        },
+        {
+            "name": "Mirar izquierda",
+            "config": "10:338, 4:350"
+        },
+        {
+            "name": "Centrar mirada",
+            "config": "4:327,10:300,5:280,7:367"
+        },
+        {
+            "name": "MIrar Abajo",
+            "config": "7:410, 5:246"
+        },
+        {
+            "name": "Mirar Arriba",
+            "config": "5:316,7:326"
+        }
+    ]
+}

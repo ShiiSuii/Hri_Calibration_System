@@ -3,5 +3,5 @@ __pycache__/
 *.pyc
 
 # Archivos de Configuración y Logs HRI
-*.json
 *.csv
+logs/
