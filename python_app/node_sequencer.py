@@ -276,11 +276,10 @@ class Node:
             return (coords[0] + coords[2]) / 2, (coords[1] + coords[3]) / 2
         return self.x, self.y
 
-class NodeSequencerApp(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-        self.title("Secuenciador Basado en Nodos")
-        self.geometry("1200x900")
+class NodeSequencerApp(ctk.CTkFrame):
+    def __init__(self, master=None, return_callback=None):
+        super().__init__(master)
+        self.return_callback = return_callback
         
         self.custom_actions = []
         self.servos = []
@@ -374,18 +373,53 @@ class NodeSequencerApp(ctk.CTk):
         sidebar = ctk.CTkScrollableFrame(self, width=220)
         sidebar.pack(side="left", fill="y", padx=10, pady=10)
         
-        ctk.CTkLabel(sidebar, text="Herramientas", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=10)
+        header_frame = ctk.CTkFrame(sidebar, fg_color="transparent")
+        header_frame.pack(fill="x", pady=5)
+        ctk.CTkLabel(header_frame, text="Herramientas", font=ctk.CTkFont(size=18, weight="bold")).pack(side="left")
+        ctk.CTkButton(header_frame, text="Volver", width=60, fg_color="#da3633", hover_color="#f85149", font=ctk.CTkFont(size=12, weight="bold"), command=self.on_closing).pack(side="right")
         
-        ctk.CTkButton(sidebar, text="+ Nodo Inicio", fg_color="#2ea043", hover_color="#238636", command=lambda: self.add_node("start")).pack(pady=5, fill="x")
-        ctk.CTkButton(sidebar, text="+ Nodo Acción", fg_color="#1f6feb", hover_color="#388bfd", command=lambda: self.add_node("action")).pack(pady=5, fill="x")
-        ctk.CTkButton(sidebar, text="+ Nodo Delay", fg_color="#d29922", hover_color="#e3b341", command=lambda: self.add_node("delay")).pack(pady=5, fill="x")
-        ctk.CTkButton(sidebar, text="+ Nodo Hablar", fg_color="#8957e5", hover_color="#a371f7", command=lambda: self.add_node("tts")).pack(pady=5, fill="x")
-        ctk.CTkButton(sidebar, text="+ Nodo Escuchar", fg_color="#0891b2", hover_color="#06b6d4", command=lambda: self.add_node("stt")).pack(pady=5, fill="x")
-        ctk.CTkButton(sidebar, text="+ Nodo Cámara", fg_color="#d73a49", hover_color="#cb2431", command=lambda: self.add_node("camera")).pack(pady=5, fill="x")
-        ctk.CTkButton(sidebar, text="+ Nodo Parpadear", fg_color="#ff7b72", hover_color="#d73a49", command=lambda: self.add_node("blink")).pack(pady=5, fill="x")
-        ctk.CTkButton(sidebar, text="+ Nodo Mandíbula", fg_color="#f78166", hover_color="#ce5a43", command=lambda: self.add_node("jaw")).pack(pady=5, fill="x")
-        ctk.CTkButton(sidebar, text="+ Nodo LED RGB", fg_color="#39c5bb", hover_color="#06b6d4", command=lambda: self.add_node("led")).pack(pady=5, fill="x")
-        ctk.CTkButton(sidebar, text="+ Nodo Stop", fg_color="#da3633", hover_color="#f85149", command=lambda: self.add_node("stop")).pack(pady=5, fill="x")
+        # CATEGORIAS
+        def crear_categoria(titulo, botones):
+            cat_frame = ctk.CTkFrame(sidebar, fg_color="#161b22", corner_radius=6)
+            cat_frame.pack(pady=5, fill="x", padx=2)
+            btn_cat = ctk.CTkButton(cat_frame, text=titulo, fg_color="#21262d", hover_color="#30363d", font=ctk.CTkFont(size=14, weight="bold"))
+            btn_cat.pack(fill="x")
+            
+            items_frame = ctk.CTkFrame(cat_frame, fg_color="transparent")
+            items_frame.pack(fill="x", pady=5, padx=5)
+            
+            def toggle():
+                if items_frame.winfo_ismapped():
+                    items_frame.pack_forget()
+                else:
+                    items_frame.pack(fill="x", pady=5, padx=5)
+                    
+            btn_cat.configure(command=toggle)
+            
+            for (txt, color, hover, nodetype) in botones:
+                ctk.CTkButton(items_frame, text=txt, fg_color=color, hover_color=hover, command=lambda nt=nodetype: self.add_node(nt)).pack(pady=2, fill="x")
+
+        crear_categoria("Flujo Principal", [
+            ("+ Nodo Inicio", "#2ea043", "#238636", "start"),
+            ("+ Nodo Stop", "#da3633", "#f85149", "stop"),
+            ("+ Nodo Delay", "#d29922", "#e3b341", "delay")
+        ])
+        
+        crear_categoria("Movimientos Actuadores", [
+            ("+ Acción Libre", "#1f6feb", "#388bfd", "action"),
+            ("+ Parpadear", "#ff7b72", "#d73a49", "blink"),
+            ("+ Animación Mandíbula", "#f78166", "#ce5a43", "jaw")
+        ])
+        
+        crear_categoria("Habla, Voz y Escucha", [
+            ("+ Hablar (TTS)", "#8957e5", "#a371f7", "tts"),
+            ("+ Escuchar (STT)", "#0891b2", "#06b6d4", "stt")
+        ])
+        
+        crear_categoria("Visión y Estado", [
+            ("+ Detección Cámara", "#d73a49", "#cb2431", "camera"),
+            ("+ LED RGB", "#39c5bb", "#06b6d4", "led")
+        ])
         
         ctk.CTkLabel(sidebar, text="--- Opciones de Voz ---").pack(pady=5)
         self.tts_engine_var = ctk.StringVar(value="Natural (gTTS)")
@@ -913,11 +947,11 @@ class NodeSequencerApp(ctk.CTk):
                         pygame.mixer.music.load(temp_file)
                         pygame.mixer.music.play()
                         
+                        import time
                         while pygame.mixer.music.get_busy() and self.seq_running:
-                            pygame.time.Clock().tick(10)
+                            time.sleep(0.1)
                             
                         pygame.mixer.music.stop()
-                        pygame.mixer.quit()
                         try:
                             os.remove(temp_file)
                         except:
@@ -1200,6 +1234,8 @@ class NodeSequencerApp(ctk.CTk):
             except:
                 pass
         self.destroy()
+        if hasattr(self, 'return_callback') and self.return_callback:
+            self.return_callback()
 
 if __name__ == "__main__":
     app = NodeSequencerApp()

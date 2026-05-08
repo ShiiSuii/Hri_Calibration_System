@@ -64,7 +64,7 @@ def main():
     global pos18, pos19
     
     parser = argparse.ArgumentParser(description='Face Tracking Test with OpenCV')
-    parser.add_argument('--cam', type=int, default=0, help='Index de la cámara (ej. 0 para interna, 1 o 2 para USB)')
+    parser.add_argument('--cam', type=int, default=2, help='Index de la cámara (ej. 0 para interna, 1 o 2 para USB)')
     args = parser.parse_args()
 
     ser = auto_connect_serial()
