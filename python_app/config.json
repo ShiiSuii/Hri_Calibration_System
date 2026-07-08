@@ -14,7 +14,7 @@
             "min": 268,
             "max": 310,
             "mid": 288,
-            "current": 288
+            "current": 292
         },
         {
             "id": 2,
@@ -30,7 +30,7 @@
             "min": 215,
             "max": 304,
             "mid": 270,
-            "current": 265
+            "current": 268
         },
         {
             "id": 4,
@@ -54,7 +54,7 @@
             "min": 407,
             "max": 464,
             "mid": 450,
-            "current": 427
+            "current": 430
         },
         {
             "id": 7,
@@ -70,7 +70,7 @@
             "min": 234,
             "max": 317,
             "mid": 276,
-            "current": 249
+            "current": 307
         },
         {
             "id": 9,
@@ -78,7 +78,7 @@
             "min": 250,
             "max": 306,
             "mid": 285,
-            "current": 306
+            "current": 270
         },
         {
             "id": 10,
@@ -94,7 +94,7 @@
             "min": 325,
             "max": 285,
             "mid": 310,
-            "current": 285
+            "current": 325
         },
         {
             "id": 12,
@@ -142,15 +142,15 @@
             "min": 200,
             "max": 500,
             "mid": 255,
-            "current": 272
+            "current": 255
         },
         {
             "id": 18,
             "name": "Cuello/Frente",
             "min": 492,
             "max": 264,
-            "mid": 362,
-            "current": 329
+            "mid": 312,
+            "current": 312
         },
         {
             "id": 19,

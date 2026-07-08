@@ -1,8 +1,0 @@
-opencv-python==4.9.0.80
-mediapipe==0.10.11
-numpy<2.0.0
-pygame==2.5.2
-gTTS==2.5.1
-pyserial==3.5
-pandas
-matplotlib

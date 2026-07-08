@@ -5,3 +5,4 @@ __pycache__/
 # Archivos de Configuración y Logs HRI
 *.csv
 logs/
+ICCAS_STUDY/

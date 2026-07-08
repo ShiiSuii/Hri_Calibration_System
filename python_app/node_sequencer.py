@@ -106,8 +106,17 @@ class Node:
             if "Parpadear" not in actions:
                 actions.append("Parpadear")
             if not actions: actions = ["None"]
-            self.widget = ctk.CTkOptionMenu(self.app, values=actions, width=120, height=25, command=self.update_size)
-            self.widget_window_id = self.canvas.create_window(x+width/2, y+50, window=self.widget)
+            self.widget_frame = ctk.CTkFrame(self.app, fg_color="transparent")
+            self.action_menu = ctk.CTkOptionMenu(self.widget_frame, values=actions, width=120, height=25, command=self.update_size)
+            self.action_menu.pack(side="left", padx=2)
+            
+            # Speed slider: 0.05 (fast) to 1.0 (slow)
+            self.speed_slider = ctk.CTkSlider(self.widget_frame, from_=0.05, to=1.0, width=80, height=20, number_of_steps=19, command=self.update_size)
+            self.speed_slider.set(0.5)
+            self.speed_slider.pack(side="left", padx=2)
+            
+            self.widget = self.widget_frame
+            self.widget_window_id = self.canvas.create_window(x+width/2, y+50, window=self.widget_frame)
         elif node_type == "delay":
             self.widget = ctk.CTkEntry(self.app, width=100, height=25, justify="center")
             self.widget.insert(0, "1.0")
@@ -193,6 +202,8 @@ class Node:
                     val = self.routine_type.get() + self.repeat_entry.get()
                 elif self.node_type == "blink":
                     val = self.repeat_entry.get() + "Speed" # Dummy for width
+                elif self.node_type == "action":
+                    val = self.action_menu.get() + "Speed" # Dummy for width
                 elif self.node_type == "led":
                     val = self.led_num.get() + self.led_color.get()
                 else:
@@ -214,7 +225,7 @@ class Node:
             
             if self.widget_window_id:
                 self.canvas.coords(self.widget_window_id, self.x + self.width/2, self.y + 50)
-                if self.node_type not in ["jaw", "blink", "led"]:
+                if self.node_type not in ["jaw", "blink", "led", "action"]:
                     if isinstance(self.widget, ctk.CTkEntry) or isinstance(self.widget, ctk.CTkOptionMenu):
                         self.widget.configure(width=self.width - 40)
                 
@@ -319,6 +330,9 @@ class NodeSequencerApp(ctk.CTkFrame):
                         self.custom_actions = data.get("custom_actions", [])
             except Exception:
                 pass
+                
+        # Inicializar estado actual de servos
+        self.current_servo_pos = {s["id"]: s.get("mid", 375) for s in self.servos}
                 
     def auto_connect_serial(self):
         ports = list(serial.tools.list_ports.comports())
@@ -653,14 +667,16 @@ class NodeSequencerApp(ctk.CTkFrame):
             cmd = f"C{channel} P{pulse}\n"
             try:
                 self.serial_port.write(cmd.encode())
+                if pulse > 0:
+                    self.current_servo_pos[channel] = pulse
                 if self.logging_active:
                     self.log_data.append([datetime.datetime.now().isoformat(), "servo", str(channel), str(pulse)])
             except:
                 pass
 
-    def execute_action(self, action_name):
+    def execute_action(self, action_name, speed=0.5, finish_callback=None):
         if action_name == "Parpadear":
-            self.blink_eyes(times=2) # Default for quick action
+            self.blink_eyes(times=2, speed=speed, finish_callback=finish_callback)
             return
             
         cfg_str = ""
@@ -669,7 +685,9 @@ class NodeSequencerApp(ctk.CTkFrame):
                 cfg_str = act.get("config", "")
                 break
                 
-        if not cfg_str: return
+        if not cfg_str:
+            if finish_callback: self.after(0, finish_callback)
+            return
         
         moves = []
         try:
@@ -686,16 +704,34 @@ class NodeSequencerApp(ctk.CTkFrame):
                         pulse_val = int(pulse.strip())
                     moves.append((int(ch.strip()), pulse_val))
         except Exception:
+            if finish_callback: self.after(0, finish_callback)
             return
             
+        total_time_ms = int(speed * 1000)
+        steps = max(5, total_time_ms // 20)
+        
+        step_increments = []
         for ch, pulse in moves:
-            self.send_command(ch, pulse)
+            start_pos = self.current_servo_pos.get(ch, 375)
+            diff = pulse - start_pos
+            step_increments.append((ch, start_pos, diff))
             
-        # Apagar servos después de un tiempo para evitar sobrecalentamiento
-        def turn_off():
-            for ch, _ in moves:
-                self.send_command(ch, 0)
-        self.after(500, turn_off)
+        def perform_step(current_step):
+            if not self.seq_running and current_step > 0: return
+            if current_step <= steps:
+                for ch, start_pos, diff in step_increments:
+                    current_pulse = start_pos + int(diff * (current_step / steps))
+                    self.send_command(ch, current_pulse)
+                self.after(20, lambda: perform_step(current_step + 1))
+            else:
+                def turn_off():
+                    for ch, _ in moves:
+                        self.send_command(ch, 0)
+                self.after(500, turn_off)
+                if finish_callback:
+                    self.after(0, finish_callback)
+                    
+        perform_step(1)
 
     def blink_eyes(self, times=3, speed=0.3, finish_callback=None):
         def blink_routine(count):
@@ -914,9 +950,9 @@ class NodeSequencerApp(ctk.CTkFrame):
             self.after(50, finish_node)
             
         elif node.node_type == "action":
-            act_name = node.widget.get()
-            self.execute_action(act_name)
-            self.after(100, finish_node)
+            act_name = node.action_menu.get()
+            speed = node.speed_slider.get()
+            self.execute_action(act_name, speed=speed, finish_callback=finish_node)
             
         elif node.node_type == "delay":
             try:
@@ -1129,6 +1165,8 @@ class NodeSequencerApp(ctk.CTkFrame):
                 widget_value = {"routine": n.routine_type.get(), "repeat": n.repeat_entry.get(), "speed": n.speed_slider.get()}
             elif n.node_type == "blink":
                 widget_value = {"repeat": n.repeat_entry.get(), "speed": n.speed_slider.get()}
+            elif n.node_type == "action":
+                widget_value = {"action": n.action_menu.get(), "speed": n.speed_slider.get()}
             elif n.node_type == "led":
                 widget_value = {"led_num": n.led_num.get(), "led_color": n.led_color.get()}
             else:
@@ -1185,6 +1223,13 @@ class NodeSequencerApp(ctk.CTkFrame):
                         n.repeat_entry.delete(0, "end")
                         n.repeat_entry.insert(0, str(val.get("repeat", "3")))
                         n.speed_slider.set(float(val.get("speed", 0.3)))
+                    elif n.node_type == "action":
+                        if isinstance(val, dict):
+                            n.action_menu.set(val.get("action", "None"))
+                            n.speed_slider.set(float(val.get("speed", 0.5)))
+                        else:
+                            n.action_menu.set(str(val))
+                            n.speed_slider.set(0.5)
                     elif n.node_type == "led" and isinstance(val, dict):
                         n.led_num.set(val.get("led_num", "LED 1"))
                         n.led_color.set(val.get("led_color", "Rojo"))
